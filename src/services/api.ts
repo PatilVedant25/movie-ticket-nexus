@@ -1,8 +1,8 @@
 // Immediate log to verify JavaScript is running
 console.log('API Service initialized');
-console.log('API_URL:', process.env.REACT_APP_API_URL);
+console.log('API_URL:', import.meta.env.VITE_API_URL);
 
-const API_URL = process.env.REACT_APP_API_URL || 'YOUR_API_GATEWAY_URL';
+const API_URL = import.meta.env.VITE_API_URL || 'YOUR_API_GATEWAY_URL';
 
 export const api = {
     async createBooking(bookingData: any) {
