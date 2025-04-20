@@ -15,6 +15,8 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+console.log('App component loaded');
+
 const queryClient = new QueryClient();
 
 const App = () => (
