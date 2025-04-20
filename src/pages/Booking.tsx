@@ -130,7 +130,7 @@ const Booking = () => {
         seats: selectedSeats.map(seat => seat.id),
         customerInfo,
         totalPrice,
-        status: 'confirmed',
+        status: 'pending' as const,
         timestamp: new Date().toISOString()
       };
 
