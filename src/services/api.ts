@@ -21,12 +21,46 @@ export const api = {
                 })
             });
             console.log('Response status:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
             const result = await response.json();
             console.log('API Response:', result);
-            return result;
+            
+            // Check if the response has a body property (Lambda format)
+            if (result.body) {
+                try {
+                    // Parse the body if it's a string
+                    const parsedBody = typeof result.body === 'string' 
+                        ? JSON.parse(result.body) 
+                        : result.body;
+                    
+                    // Return a standardized format
+                    return {
+                        success: true,
+                        bookingId: parsedBody.data?.id || parsedBody.id,
+                        message: parsedBody.message || 'Booking created successfully'
+                    };
+                } catch (parseError) {
+                    console.error('Error parsing response body:', parseError);
+                    throw new Error('Invalid response format from server');
+                }
+            }
+            
+            // If no body property, return the result as is
+            return {
+                success: true,
+                bookingId: result.bookingId || result.id,
+                message: result.message || 'Booking created successfully'
+            };
         } catch (error) {
             console.error('API Error:', error);
-            throw error;
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
         }
     },
 

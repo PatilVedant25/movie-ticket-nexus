@@ -9,7 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Calendar, Clock, Film, MapPin, CreditCard } from 'lucide-react';
 import { api } from '@/services/api';
+import { mockApi } from '@/services/mockApi';
 import { useToast } from '@/components/ui/use-toast';
+
+// Use mock API in development mode
+const isDevelopment = process.env.NODE_ENV === 'development';
+const apiService = isDevelopment ? mockApi : api;
 
 interface SeatType {
   id: string;
@@ -128,7 +133,9 @@ const Booking = () => {
         timestamp: new Date().toISOString()
       };
 
-      const response = await api.createBooking(bookingData);
+      console.log('Sending booking data:', bookingData);
+      const response = await apiService.createBooking(bookingData);
+      console.log('Booking response:', response);
       
       if (response.success) {
         toast({
@@ -153,7 +160,9 @@ const Booking = () => {
       console.error('Booking error:', error);
       toast({
         title: "Booking Failed",
-        description: "There was an error processing your booking. Please try again.",
+        description: error instanceof Error 
+          ? error.message 
+          : "There was an error processing your booking. Please try again.",
         variant: "destructive",
       });
     } finally {
