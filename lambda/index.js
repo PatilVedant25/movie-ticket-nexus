@@ -6,7 +6,8 @@ const TABLE_NAME = 'MovieTickets';
 const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,POST'
+    'Access-Control-Allow-Methods': 'OPTIONS,POST',
+    'Content-Type': 'application/json'
 };
 
 exports.handler = async (event) => {
@@ -17,25 +18,70 @@ exports.handler = async (event) => {
         return {
             statusCode: 200,
             headers,
-            body: ''
+            body: JSON.stringify({ message: 'CORS preflight successful' })
         };
     }
     
     try {
         // Parse the incoming request body
-        const body = JSON.parse(event.body);
-        console.log('Request body:', body);
+        let body;
+        try {
+            body = JSON.parse(event.body);
+            console.log('Request body:', body);
+        } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({
+                    success: false,
+                    message: 'Invalid request body',
+                    error: parseError.message
+                })
+            };
+        }
+
         const { action, data } = body;
+        if (!action) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({
+                    success: false,
+                    message: 'Missing action parameter'
+                })
+            };
+        }
 
         let result;
         switch (action) {
             case 'createBooking':
+                if (!data) {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Missing booking data'
+                        })
+                    };
+                }
                 result = await createBooking(data);
                 break;
             case 'getBookings':
                 result = await getBookings();
                 break;
             case 'getBooking':
+                if (!data?.id) {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Missing booking ID'
+                        })
+                    };
+                }
                 result = await getBooking(data.id);
                 break;
             default:
@@ -44,7 +90,7 @@ exports.handler = async (event) => {
                     headers,
                     body: JSON.stringify({ 
                         success: false,
-                        message: 'Invalid action' 
+                        message: `Invalid action: ${action}` 
                     })
                 };
         }
@@ -74,17 +120,26 @@ exports.handler = async (event) => {
 async function createBooking(bookingData) {
     console.log('Creating booking:', bookingData);
     
+    // Validate required fields
+    const requiredFields = ['movieId', 'showtimeId', 'theaterId', 'seats', 'customerInfo'];
+    const missingFields = requiredFields.filter(field => !bookingData[field]);
+    if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+    
     const bookingId = Date.now().toString();
     const params = {
         TableName: TABLE_NAME,
         Item: {
             id: bookingId,
             timestamp: new Date().toISOString(),
-            ...bookingData
+            ...bookingData,
+            status: 'confirmed'
         }
     };
 
     try {
+        console.log('DynamoDB put params:', params);
         await dynamoDB.put(params).promise();
         console.log('Booking created successfully:', bookingId);
         return {
