@@ -1,4 +1,6 @@
 // Mock API service for development
+import { BookingData, BookingResponse, GetBookingResponse, GetBookingsResponse } from '@/types/booking';
+
 console.log('Mock API Service initialized');
 
 // Generate a random booking ID
@@ -7,7 +9,7 @@ const generateBookingId = () => {
 };
 
 export const mockApi = {
-  async createBooking(bookingData: any) {
+  async createBooking(bookingData: BookingData): Promise<BookingResponse> {
     console.log('Mock API: Sending booking data:', bookingData);
     
     // Simulate network delay
@@ -21,7 +23,7 @@ export const mockApi = {
     };
   },
   
-  async getBookings() {
+  async getBookings(): Promise<GetBookingsResponse> {
     console.log('Mock API: Fetching bookings');
     
     // Simulate network delay
@@ -32,7 +34,6 @@ export const mockApi = {
       success: true,
       bookings: [
         {
-          id: 'BK123456789',
           movieId: 1,
           showtimeId: 1,
           theaterId: 1,
@@ -50,7 +51,7 @@ export const mockApi = {
     };
   },
   
-  async getBooking(id: string) {
+  async getBooking(id: string): Promise<GetBookingResponse> {
     console.log('Mock API: Fetching booking:', id);
     
     // Simulate network delay
@@ -60,7 +61,6 @@ export const mockApi = {
     return {
       success: true,
       booking: {
-        id: id,
         movieId: 1,
         showtimeId: 1,
         theaterId: 1,
