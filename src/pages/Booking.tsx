@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Calendar, Clock, Film, MapPin, CreditCard } from 'lucide-react';
+import { api } from '@/services/api';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SeatType {
   id: string;
@@ -31,6 +33,7 @@ const initialSeatMap = Array(8)
 const Booking = () => {
   const { movieId, showtimeId } = useParams<{ movieId: string, showtimeId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const [seatMap, setSeatMap] = useState<SeatType[][]>(initialSeatMap);
   const [selectedSeats, setSelectedSeats] = useState<SeatType[]>([]);
@@ -40,6 +43,7 @@ const Booking = () => {
     email: '',
     phone: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
   
   const movie = movies.find(m => m.id === Number(movieId));
   const showtime = showtimeId 
@@ -108,8 +112,53 @@ const Booking = () => {
     });
   };
   
-  const handleComplete = () => {
-    navigate('/booking-confirmation');
+  const handleComplete = async () => {
+    if (!movie || !showtime || !theater) return;
+    
+    setIsLoading(true);
+    try {
+      const bookingData = {
+        movieId: movie.id,
+        showtimeId: showtime.id,
+        theaterId: theater.id,
+        seats: selectedSeats.map(seat => seat.id),
+        customerInfo,
+        totalPrice,
+        status: 'confirmed',
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await api.createBooking(bookingData);
+      
+      if (response.success) {
+        toast({
+          title: "Booking Successful!",
+          description: "Your tickets have been booked successfully.",
+        });
+        navigate('/booking-confirmation', { 
+          state: { 
+            bookingId: response.bookingId,
+            movieTitle: movie.title,
+            showtime: showtime.time,
+            date: showtime.date,
+            theater: theater.name,
+            seats: selectedSeats.map(seat => seat.id),
+            totalPrice
+          }
+        });
+      } else {
+        throw new Error(response.message || 'Failed to create booking');
+      }
+    } catch (error) {
+      console.error('Booking error:', error);
+      toast({
+        title: "Booking Failed",
+        description: "There was an error processing your booking. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -349,14 +398,15 @@ const Booking = () => {
                       <Button 
                         className="w-full"
                         onClick={handleComplete}
-                        disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone}
+                        disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone || isLoading}
                       >
-                        Complete Payment
+                        {isLoading ? 'Processing...' : 'Complete Payment'}
                       </Button>
                       <Button 
                         variant="outline" 
                         className="w-full"
                         onClick={handleBack}
+                        disabled={isLoading}
                       >
                         Back to Seat Selection
                       </Button>
