@@ -7,12 +7,13 @@ import { theaters } from '@/data/theaters';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, Film, MapPin, CreditCard } from 'lucide-react';
+import { Calendar, Clock, Film, MapPin, CreditCard, CheckCircle2 } from 'lucide-react';
 import { mockApi } from '@/services/mockApi';
 import { useToast } from '@/components/ui/use-toast';
 import EnvDebug from '@/components/EnvDebug';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, XCircle } from "lucide-react";
+import { cn } from '@/lib/utils';
 
 interface SeatType {
   id: string;
@@ -48,6 +49,13 @@ const Booking = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
+  const [hoveredSeat, setHoveredSeat] = useState<{ row: number; col: number } | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const movie = movies.find(m => m.id === Number(movieId));
   const showtime = showtimeId 
@@ -98,6 +106,17 @@ const Booking = () => {
     setSeatMap(newSeatMap);
   };
   
+  const handleSeatHover = (rowIndex: number, seatIndex: number) => {
+    const seat = seatMap[rowIndex][seatIndex];
+    if (seat.status === 'available') {
+      setHoveredSeat({ row: rowIndex, col: seatIndex });
+    }
+  };
+
+  const handleSeatLeave = () => {
+    setHoveredSeat(null);
+  };
+  
   const totalPrice = selectedSeats.length * showtime.price;
   
   const handleProceedToCheckout = () => {
@@ -108,21 +127,55 @@ const Booking = () => {
     setPaymentStep('seat-selection');
   };
   
+  const validateForm = () => {
+    const errors: typeof formErrors = {};
+    
+    if (!customerInfo.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (!customerInfo.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!customerInfo.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s-]{10,}$/.test(customerInfo.phone)) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCustomerInfo({
       ...customerInfo,
       [name]: value
     });
+    // Clear error when user starts typing
+    if (formErrors[name as keyof typeof formErrors]) {
+      setFormErrors({
+        ...formErrors,
+        [name]: undefined
+      });
+    }
   };
   
   const clearError = () => setError(null);
   
   const handleComplete = async () => {
+    if (!validateForm()) {
+      return;
+    }
+    
     if (!movie || !showtime || !theater) return;
     
     setError(null);
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       const bookingData = {
         movieId: movie.id,
@@ -170,23 +223,18 @@ const Booking = () => {
       }
     } catch (error) {
       console.error('Booking error:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : "There was an error processing your booking. Please try again.";
-      
       setError({
-        title: "Booking Failed",
-        message: errorMessage
+        title: "Booking Error",
+        message: "An unexpected error occurred. Please try again."
       });
-      
       toast({
-        title: "Booking Failed",
-        description: errorMessage,
+        title: "Booking Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
         duration: 5000
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
   
@@ -216,6 +264,31 @@ const Booking = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-8">Ticket Booking</h1>
+        
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between max-w-2xl mx-auto">
+            <div className="flex flex-col items-center">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center mb-2",
+                paymentStep === 'seat-selection' ? "bg-movie-primary" : "bg-muted"
+              )}>
+                <span className="text-sm font-medium">1</span>
+              </div>
+              <span className="text-sm">Select Seats</span>
+            </div>
+            <div className="flex-1 h-0.5 bg-muted mx-4" />
+            <div className="flex flex-col items-center">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center mb-2",
+                paymentStep === 'checkout' ? "bg-movie-primary" : "bg-muted"
+              )}>
+                <span className="text-sm font-medium">2</span>
+              </div>
+              <span className="text-sm">Payment</span>
+            </div>
+          </div>
+        </div>
         
         {renderError()}
         
@@ -248,13 +321,16 @@ const Booking = () => {
                               {row.map((seat, seatIndex) => (
                                 <button
                                   key={seatIndex}
-                                  className={`
-                                    seat w-6 h-6 rounded-t-md text-xs font-medium flex items-center justify-center
-                                    ${seat.status === 'available' ? 'bg-muted-foreground/30 hover:bg-muted-foreground/50 available' : ''}
-                                    ${seat.status === 'selected' ? 'bg-movie-primary selected' : ''}
-                                    ${seat.status === 'booked' ? 'bg-muted-foreground/80 opacity-50 booked' : ''}
-                                  `}
+                                  className={cn(
+                                    "seat w-6 h-6 rounded-t-md text-xs font-medium flex items-center justify-center transition-all duration-200",
+                                    seat.status === 'available' && "bg-muted-foreground/30 hover:bg-muted-foreground/50 available hover:scale-110",
+                                    seat.status === 'selected' && "bg-movie-primary selected",
+                                    seat.status === 'booked' && "bg-muted-foreground/80 opacity-50 booked",
+                                    hoveredSeat?.row === rowIndex && hoveredSeat?.col === seatIndex && "ring-2 ring-movie-primary ring-offset-2"
+                                  )}
                                   onClick={() => handleSeatClick(rowIndex, seatIndex)}
+                                  onMouseEnter={() => handleSeatHover(rowIndex, seatIndex)}
+                                  onMouseLeave={handleSeatLeave}
                                   disabled={seat.status === 'booked'}
                                 >
                                   {seatIndex + 1}
@@ -267,6 +343,21 @@ const Booking = () => {
                           </div>
                         ))}
                       </div>
+                      
+                      {/* Seat Preview */}
+                      {hoveredSeat && (
+                        <div className="mt-4 p-3 bg-card rounded-lg border border-border">
+                          <div className="flex items-center gap-2">
+                            <div className="seat w-4 h-4 rounded-t-md bg-muted-foreground/30"></div>
+                            <span className="text-sm">
+                              Seat {String.fromCharCode(65 + hoveredSeat.row)}{hoveredSeat.col + 1}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Click to select this seat
+                          </p>
+                        </div>
+                      )}
                       
                       <div className="flex justify-center gap-6 mt-8">
                         <div className="flex items-center gap-2">
@@ -301,7 +392,13 @@ const Booking = () => {
                           value={customerInfo.name}
                           onChange={handleInputChange}
                           placeholder="Enter your full name"
+                          className={cn(
+                            formErrors.name && "border-destructive focus-visible:ring-destructive"
+                          )}
                         />
+                        {formErrors.name && (
+                          <p className="text-sm text-destructive">{formErrors.name}</p>
+                        )}
                       </div>
                       
                       <div className="space-y-2">
@@ -313,7 +410,13 @@ const Booking = () => {
                           value={customerInfo.email}
                           onChange={handleInputChange}
                           placeholder="Enter your email"
+                          className={cn(
+                            formErrors.email && "border-destructive focus-visible:ring-destructive"
+                          )}
                         />
+                        {formErrors.email && (
+                          <p className="text-sm text-destructive">{formErrors.email}</p>
+                        )}
                       </div>
                     </div>
                     
@@ -326,7 +429,13 @@ const Booking = () => {
                         value={customerInfo.phone}
                         onChange={handleInputChange}
                         placeholder="Enter your phone number"
+                        className={cn(
+                          formErrors.phone && "border-destructive focus-visible:ring-destructive"
+                        )}
                       />
+                      {formErrors.phone && (
+                        <p className="text-sm text-destructive">{formErrors.phone}</p>
+                      )}
                     </div>
                     
                     <div className="pt-4 border-t border-border">
@@ -339,6 +448,7 @@ const Booking = () => {
                             <Input 
                               id="cardNumber"
                               placeholder="0000 0000 0000 0000"
+                              className="pr-10"
                             />
                             <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
                           </div>
@@ -358,6 +468,8 @@ const Booking = () => {
                             <Input 
                               id="cvv"
                               placeholder="000"
+                              type="password"
+                              maxLength={4}
                             />
                           </div>
                         </div>
@@ -453,15 +565,15 @@ const Booking = () => {
                       <Button 
                         className="w-full"
                         onClick={handleComplete}
-                        disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone || isLoading}
+                        disabled={!customerInfo.name || !customerInfo.email || !customerInfo.phone || isSubmitting}
                       >
-                        {isLoading ? 'Processing...' : 'Complete Payment'}
+                        {isSubmitting ? 'Processing...' : 'Complete Payment'}
                       </Button>
                       <Button 
                         variant="outline" 
                         className="w-full"
                         onClick={handleBack}
-                        disabled={isLoading}
+                        disabled={isSubmitting}
                       >
                         Back to Seat Selection
                       </Button>
