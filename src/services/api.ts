@@ -13,20 +13,62 @@ const apiClient = axios.create({
     timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Origin': window.location.origin
     }
 });
 
-// Add retry logic
+// Add retry logic with exponential backoff
 apiClient.interceptors.response.use(undefined, async (error) => {
     if (error.config && error.config.__retryCount < 2) {
         error.config.__retryCount = error.config.__retryCount || 0;
         error.config.__retryCount += 1;
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Exponential backoff: wait longer between each retry
+        const backoffDelay = Math.pow(2, error.config.__retryCount) * 1000;
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
         return apiClient(error.config);
     }
     return Promise.reject(error);
 });
+
+// Add request interceptor for debugging
+apiClient.interceptors.request.use(request => {
+    console.log('Starting Request:', {
+        url: request.url,
+        method: request.method,
+        headers: request.headers,
+        data: request.data
+    });
+    return request;
+});
+
+// Add response interceptor for debugging
+apiClient.interceptors.response.use(
+    response => {
+        console.log('Response:', {
+            status: response.status,
+            headers: response.headers,
+            data: response.data
+        });
+        return response;
+    },
+    error => {
+        console.log('Response Error:', {
+            message: error.message,
+            response: error.response ? {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            } : 'No response',
+            config: {
+                url: error.config.url,
+                method: error.config.method,
+                headers: error.config.headers
+            }
+        });
+        return Promise.reject(error);
+    }
+);
 
 export const api = {
     async createBooking(bookingData: BookingData): Promise<BookingResponse> {

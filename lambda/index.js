@@ -4,15 +4,17 @@ const TABLE_NAME = 'MovieTickets';
 
 // CORS headers
 const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://main.d2ecyq9d1r2dy.amplifyapp.com',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Origin',
     'Access-Control-Allow-Methods': 'OPTIONS,POST',
     'Access-Control-Max-Age': '86400',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Vary': 'Origin'
 };
 
 exports.handler = async (event) => {
     console.log('Event:', JSON.stringify(event, null, 2));
+    console.log('Origin:', event.headers.origin || event.headers.Origin);
     
     // Handle OPTIONS requests for CORS
     if (event.httpMethod === 'OPTIONS') {
