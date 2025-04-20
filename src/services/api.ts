@@ -2,14 +2,38 @@
 console.log('API Service initialized');
 console.log('API_URL:', import.meta.env.VITE_API_URL);
 
+import axios from 'axios';
 import { BookingData, BookingResponse, GetBookingResponse, GetBookingsResponse } from '@/types/booking';
 
 const API_URL = import.meta.env.VITE_API_URL || 'YOUR_API_GATEWAY_URL';
 
+// Create axios instance with default config
+const apiClient = axios.create({
+    baseURL: API_URL,
+    timeout: 15000,
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+});
+
+// Add retry logic
+apiClient.interceptors.response.use(undefined, async (error) => {
+    if (error.config && error.config.__retryCount < 2) {
+        error.config.__retryCount = error.config.__retryCount || 0;
+        error.config.__retryCount += 1;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return apiClient(error.config);
+    }
+    return Promise.reject(error);
+});
+
 export const api = {
     async createBooking(bookingData: BookingData): Promise<BookingResponse> {
+        console.log('Starting booking request...');
         console.log('Sending booking data:', bookingData);
         console.log('API URL:', API_URL);
+        
         try {
             // Check if API_URL is still the placeholder
             if (API_URL === 'YOUR_API_GATEWAY_URL') {
@@ -26,44 +50,20 @@ export const api = {
                 throw new Error('Missing required booking data fields');
             }
             
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({
-                    action: 'createBooking',
-                    data: bookingData
-                })
+            console.log('Sending request to API...');
+            const response = await apiClient.post('', {
+                action: 'createBooking',
+                data: bookingData
             });
-            console.log('Response status:', response.status);
             
-            if (response.status === 404) {
-                console.error('API endpoint not found. Check your API_URL configuration.');
-                return {
-                    success: false,
-                    message: 'API endpoint not found. Please check your configuration.'
-                };
-            }
-
-            if (response.status === 403) {
-                console.error('Access forbidden. CORS might not be configured correctly.');
-                return {
-                    success: false,
-                    message: 'Access to the API is forbidden. Please check CORS configuration.'
-                };
-            }
+            console.log('Response received:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers,
+                data: response.data
+            });
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`HTTP error! Status: ${response.status}, Body:`, errorText);
-                throw new Error(`API request failed: ${response.status} - ${errorText || 'No error details available'}`);
-            }
-            
-            const result = await response.json();
-            console.log('API Response:', result);
+            const result = response.data;
             
             // Check if the response has a body property (Lambda format)
             if (result.body) {
@@ -93,12 +93,43 @@ export const api = {
             };
         } catch (error) {
             console.error('API Error:', error);
-            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            
+            if (axios.isAxiosError(error)) {
+                if (error.code === 'ECONNABORTED') {
+                    return {
+                        success: false,
+                        message: 'Request timed out. Please try again.'
+                    };
+                }
+                
+                if (!error.response) {
+                    return {
+                        success: false,
+                        message: 'Network error. Please check your connection and try again.'
+                    };
+                }
+                
+                const status = error.response.status;
+                if (status === 404) {
+                    return {
+                        success: false,
+                        message: 'API endpoint not found. Please check your configuration.'
+                    };
+                }
+                
+                if (status === 403) {
+                    return {
+                        success: false,
+                        message: 'Access to the API is forbidden. Please check CORS configuration.'
+                    };
+                }
+                
                 return {
                     success: false,
-                    message: 'Unable to connect to the server. Please check your internet connection and try again.'
+                    message: `Server error (${status}): ${error.response.data?.message || error.message}`
                 };
             }
+            
             return {
                 success: false,
                 message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -107,22 +138,11 @@ export const api = {
     },
 
     async getBookings(): Promise<GetBookingsResponse> {
-        console.log('Fetching bookings from:', API_URL);
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'getBookings'
-                })
+            const response = await apiClient.post('', {
+                action: 'getBookings'
             });
-            console.log('Get Bookings Response status:', response.status);
-            const result = await response.json();
-            console.log('Get Bookings Response:', result);
-            return result;
+            return response.data;
         } catch (error) {
             console.error('Get Bookings Error:', error);
             throw error;
@@ -131,18 +151,11 @@ export const api = {
 
     async getBooking(id: string): Promise<GetBookingResponse> {
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    action: 'getBooking',
-                    data: { id }
-                })
+            const response = await apiClient.post('', {
+                action: 'getBooking',
+                data: { id }
             });
-            return response.json();
+            return response.data;
         } catch (error) {
             console.error('Get Booking Error:', error);
             throw error;
