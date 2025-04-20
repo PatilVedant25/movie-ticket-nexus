@@ -2,64 +2,122 @@ const AWS = require('aws-sdk');
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 const TABLE_NAME = 'MovieTickets';
 
+// CORS headers
+const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'OPTIONS,POST'
+};
+
 exports.handler = async (event) => {
+    console.log('Event:', JSON.stringify(event, null, 2));
+    
+    // Handle OPTIONS requests for CORS
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers,
+            body: ''
+        };
+    }
+    
     try {
         // Parse the incoming request body
         const body = JSON.parse(event.body);
+        console.log('Request body:', body);
         const { action, data } = body;
 
+        let result;
         switch (action) {
             case 'createBooking':
-                return await createBooking(data);
+                result = await createBooking(data);
+                break;
             case 'getBookings':
-                return await getBookings();
+                result = await getBookings();
+                break;
             case 'getBooking':
-                return await getBooking(data.id);
+                result = await getBooking(data.id);
+                break;
             default:
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ message: 'Invalid action' })
+                    headers,
+                    body: JSON.stringify({ 
+                        success: false,
+                        message: 'Invalid action' 
+                    })
                 };
         }
+        
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                success: true,
+                ...result
+            })
+        };
     } catch (error) {
         console.error('Error:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ message: 'Internal server error' })
+            headers,
+            body: JSON.stringify({ 
+                success: false,
+                message: 'Internal server error',
+                error: error.message 
+            })
         };
     }
 };
 
 async function createBooking(bookingData) {
+    console.log('Creating booking:', bookingData);
+    
+    const bookingId = Date.now().toString();
     const params = {
         TableName: TABLE_NAME,
         Item: {
-            id: Date.now().toString(),
+            id: bookingId,
             timestamp: new Date().toISOString(),
             ...bookingData
         }
     };
 
-    await dynamoDB.put(params).promise();
-    return {
-        statusCode: 200,
-        body: JSON.stringify({ message: 'Booking created successfully' })
-    };
+    try {
+        await dynamoDB.put(params).promise();
+        console.log('Booking created successfully:', bookingId);
+        return {
+            message: 'Booking created successfully',
+            bookingId: bookingId,
+            data: params.Item
+        };
+    } catch (error) {
+        console.error('DynamoDB Error:', error);
+        throw new Error(`Failed to create booking: ${error.message}`);
+    }
 }
 
 async function getBookings() {
+    console.log('Fetching all bookings');
     const params = {
         TableName: TABLE_NAME
     };
 
-    const result = await dynamoDB.scan(params).promise();
-    return {
-        statusCode: 200,
-        body: JSON.stringify(result.Items)
-    };
+    try {
+        const result = await dynamoDB.scan(params).promise();
+        console.log('Fetched bookings:', result.Items.length);
+        return {
+            bookings: result.Items
+        };
+    } catch (error) {
+        console.error('DynamoDB Error:', error);
+        throw new Error(`Failed to fetch bookings: ${error.message}`);
+    }
 }
 
 async function getBooking(id) {
+    console.log('Fetching booking:', id);
     const params = {
         TableName: TABLE_NAME,
         Key: {
@@ -67,9 +125,14 @@ async function getBooking(id) {
         }
     };
 
-    const result = await dynamoDB.get(params).promise();
-    return {
-        statusCode: 200,
-        body: JSON.stringify(result.Item)
-    };
+    try {
+        const result = await dynamoDB.get(params).promise();
+        console.log('Fetched booking:', result.Item);
+        return {
+            booking: result.Item
+        };
+    } catch (error) {
+        console.error('DynamoDB Error:', error);
+        throw new Error(`Failed to fetch booking: ${error.message}`);
+    }
 } 
