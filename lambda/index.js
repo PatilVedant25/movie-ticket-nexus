@@ -5,8 +5,9 @@ const TABLE_NAME = 'MovieTickets';
 // CORS headers
 const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Origin',
     'Access-Control-Allow-Methods': 'OPTIONS,POST',
+    'Access-Control-Max-Age': '86400',
     'Content-Type': 'application/json'
 };
 

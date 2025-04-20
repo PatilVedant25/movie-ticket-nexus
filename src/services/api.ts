@@ -2,10 +2,12 @@
 console.log('API Service initialized');
 console.log('API_URL:', import.meta.env.VITE_API_URL);
 
+import { BookingData, BookingResponse, GetBookingResponse, GetBookingsResponse } from '@/types/booking';
+
 const API_URL = import.meta.env.VITE_API_URL || 'YOUR_API_GATEWAY_URL';
 
 export const api = {
-    async createBooking(bookingData: any) {
+    async createBooking(bookingData: BookingData): Promise<BookingResponse> {
         console.log('Sending booking data:', bookingData);
         console.log('API URL:', API_URL);
         try {
@@ -19,11 +21,17 @@ export const api = {
                 };
             }
             
+            // Validate booking data before sending
+            if (!bookingData.movieId || !bookingData.showtimeId || !bookingData.theaterId || !bookingData.seats || !bookingData.customerInfo) {
+                throw new Error('Missing required booking data fields');
+            }
+            
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
                 },
                 body: JSON.stringify({
                     action: 'createBooking',
@@ -85,6 +93,12 @@ export const api = {
             };
         } catch (error) {
             console.error('API Error:', error);
+            if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                return {
+                    success: false,
+                    message: 'Unable to connect to the server. Please check your internet connection and try again.'
+                };
+            }
             return {
                 success: false,
                 message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -92,7 +106,7 @@ export const api = {
         }
     },
 
-    async getBookings() {
+    async getBookings(): Promise<GetBookingsResponse> {
         console.log('Fetching bookings from:', API_URL);
         try {
             const response = await fetch(API_URL, {
@@ -115,7 +129,7 @@ export const api = {
         }
     },
 
-    async getBooking(id: string) {
+    async getBooking(id: string): Promise<GetBookingResponse> {
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
