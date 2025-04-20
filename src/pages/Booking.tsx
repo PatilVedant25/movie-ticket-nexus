@@ -176,7 +176,7 @@ const Booking = () => {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Ticket Booking</h1>
         
-        <EnvDebug />
+        {process.env.NODE_ENV === 'development' && <EnvDebug />}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">

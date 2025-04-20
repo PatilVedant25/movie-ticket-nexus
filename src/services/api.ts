@@ -39,9 +39,19 @@ export const api = {
                     message: 'API endpoint not found. Please check your configuration.'
                 };
             }
+
+            if (response.status === 403) {
+                console.error('Access forbidden. CORS might not be configured correctly.');
+                return {
+                    success: false,
+                    message: 'Access to the API is forbidden. Please check CORS configuration.'
+                };
+            }
             
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                console.error(`HTTP error! Status: ${response.status}, Body:`, errorText);
+                throw new Error(`API request failed: ${response.status} - ${errorText || 'No error details available'}`);
             }
             
             const result = await response.json();
