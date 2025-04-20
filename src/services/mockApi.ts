@@ -3,77 +3,78 @@ import { BookingData, BookingResponse, GetBookingResponse, GetBookingsResponse }
 
 console.log('Mock API Service initialized');
 
-// Generate a random booking ID
-const generateBookingId = () => {
-  return `BK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-};
+// Store bookings in memory (will be reset on page refresh)
+let mockBookings: BookingData[] = [];
 
 export const mockApi = {
   async createBooking(bookingData: BookingData): Promise<BookingResponse> {
-    console.log('Mock API: Sending booking data:', bookingData);
-    
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulate success response
-    return {
-      success: true,
-      bookingId: generateBookingId(),
-      message: 'Booking created successfully'
-    };
+
+    try {
+      // Validate required fields
+      if (!bookingData.movieId || !bookingData.showtimeId || !bookingData.theaterId || !bookingData.seats || !bookingData.customerInfo) {
+        return {
+          success: false,
+          message: 'Missing required booking information. Please fill in all fields.'
+        };
+      }
+
+      // Generate a random booking ID
+      const bookingId = `BK${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      
+      // Create the booking
+      const newBooking = {
+        ...bookingData,
+        id: bookingId,
+        timestamp: new Date().toISOString()
+      };
+
+      // Add to mock database
+      mockBookings.push(newBooking);
+
+      // Simulate successful booking
+      return {
+        success: true,
+        bookingId,
+        message: 'Booking created successfully',
+        data: newBooking
+      };
+    } catch (error) {
+      console.error('Mock API Error:', error);
+      return {
+        success: false,
+        message: 'An error occurred while processing your booking. Please try again.'
+      };
+    }
   },
   
   async getBookings(): Promise<GetBookingsResponse> {
-    console.log('Mock API: Fetching bookings');
-    
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Return mock bookings
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     return {
       success: true,
-      bookings: [
-        {
-          movieId: 1,
-          showtimeId: 1,
-          theaterId: 1,
-          seats: ['A1', 'A2'],
-          customerInfo: {
-            name: 'John Doe',
-            email: 'john@example.com',
-            phone: '123-456-7890'
-          },
-          totalPrice: 20,
-          status: 'confirmed',
-          timestamp: new Date().toISOString()
-        }
-      ]
+      bookings: mockBookings
     };
   },
   
   async getBooking(id: string): Promise<GetBookingResponse> {
-    console.log('Mock API: Fetching booking:', id);
-    
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Return mock booking
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const booking = mockBookings.find(b => b.id === id);
+
+    if (!booking) {
+      return {
+        success: false,
+        message: 'Booking not found'
+      };
+    }
+
     return {
       success: true,
-      booking: {
-        movieId: 1,
-        showtimeId: 1,
-        theaterId: 1,
-        seats: ['A1', 'A2'],
-        customerInfo: {
-          name: 'John Doe',
-          email: 'john@example.com',
-          phone: '123-456-7890'
-        },
-        totalPrice: 20,
-        status: 'confirmed',
-        timestamp: new Date().toISOString()
-      }
+      booking
     };
   }
 }; 

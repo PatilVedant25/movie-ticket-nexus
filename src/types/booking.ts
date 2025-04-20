@@ -5,6 +5,7 @@ export interface CustomerInfo {
 }
 
 export interface BookingData {
+  id?: string;
   movieId: number;
   showtimeId: number;
   theaterId: number;

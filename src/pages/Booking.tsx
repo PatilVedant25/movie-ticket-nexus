@@ -8,14 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Calendar, Clock, Film, MapPin, CreditCard } from 'lucide-react';
-import { api } from '@/services/api';
 import { mockApi } from '@/services/mockApi';
 import { useToast } from '@/components/ui/use-toast';
 import EnvDebug from '@/components/EnvDebug';
-
-// Use mock API in development mode
-const isDevelopment = process.env.NODE_ENV === 'development';
-const apiService = isDevelopment ? mockApi : api;
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, XCircle } from "lucide-react";
 
 interface SeatType {
   id: string;
@@ -50,6 +47,7 @@ const Booking = () => {
     phone: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
   
   const movie = movies.find(m => m.id === Number(movieId));
   const showtime = showtimeId 
@@ -118,9 +116,12 @@ const Booking = () => {
     });
   };
   
+  const clearError = () => setError(null);
+  
   const handleComplete = async () => {
     if (!movie || !showtime || !theater) return;
     
+    setError(null);
     setIsLoading(true);
     try {
       const bookingData = {
@@ -135,13 +136,14 @@ const Booking = () => {
       };
 
       console.log('Sending booking data:', bookingData);
-      const response = await apiService.createBooking(bookingData);
+      const response = await mockApi.createBooking(bookingData);
       console.log('Booking response:', response);
       
       if (response.success) {
         toast({
           title: "Booking Successful!",
           description: "Your tickets have been booked successfully.",
+          duration: 5000
         });
         navigate('/booking-confirmation', { 
           state: { 
@@ -155,26 +157,67 @@ const Booking = () => {
           }
         });
       } else {
-        throw new Error(response.message || 'Failed to create booking');
+        setError({
+          title: "Booking Failed",
+          message: response.message || "Failed to create booking"
+        });
+        toast({
+          title: "Booking Failed",
+          description: response.message || "Failed to create booking",
+          variant: "destructive",
+          duration: 5000
+        });
       }
     } catch (error) {
       console.error('Booking error:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "There was an error processing your booking. Please try again.";
+      
+      setError({
+        title: "Booking Failed",
+        message: errorMessage
+      });
+      
       toast({
         title: "Booking Failed",
-        description: error instanceof Error 
-          ? error.message 
-          : "There was an error processing your booking. Please try again.",
+        description: errorMessage,
         variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsLoading(false);
     }
   };
   
+  const renderError = () => {
+    if (!error) return null;
+    
+    return (
+      <Alert variant="destructive" className="mb-6">
+        <XCircle className="h-4 w-4" />
+        <AlertTitle>{error.title}</AlertTitle>
+        <AlertDescription className="mt-2">
+          {error.message}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearError}
+            className="ml-4"
+          >
+            Dismiss
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  };
+  
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Ticket Booking</h1>
+        <h1 className="text-2xl font-bold mb-8">Ticket Booking</h1>
+        
+        {renderError()}
         
         {process.env.NODE_ENV === 'development' && <EnvDebug />}
         
