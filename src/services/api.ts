@@ -9,16 +9,18 @@ export const api = {
         console.log('Sending booking data:', bookingData);
         console.log('API URL:', API_URL);
         try {
-            const response = await fetch(`${API_URL}`, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     action: 'createBooking',
                     data: bookingData
                 })
             });
+            console.log('Response status:', response.status);
             const result = await response.json();
             console.log('API Response:', result);
             return result;
@@ -31,15 +33,17 @@ export const api = {
     async getBookings() {
         console.log('Fetching bookings from:', API_URL);
         try {
-            const response = await fetch(`${API_URL}`, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     action: 'getBookings'
                 })
             });
+            console.log('Get Bookings Response status:', response.status);
             const result = await response.json();
             console.log('Get Bookings Response:', result);
             return result;
@@ -51,10 +55,11 @@ export const api = {
 
     async getBooking(id: string) {
         try {
-            const response = await fetch(`${API_URL}`, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     action: 'getBooking',
