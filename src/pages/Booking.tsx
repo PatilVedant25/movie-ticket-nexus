@@ -11,6 +11,7 @@ import { Calendar, Clock, Film, MapPin, CreditCard } from 'lucide-react';
 import { api } from '@/services/api';
 import { mockApi } from '@/services/mockApi';
 import { useToast } from '@/components/ui/use-toast';
+import EnvDebug from '@/components/EnvDebug';
 
 // Use mock API in development mode
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -174,6 +175,8 @@ const Booking = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Ticket Booking</h1>
+        
+        <EnvDebug />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">

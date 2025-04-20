@@ -9,6 +9,16 @@ export const api = {
         console.log('Sending booking data:', bookingData);
         console.log('API URL:', API_URL);
         try {
+            // Check if API_URL is still the placeholder
+            if (API_URL === 'YOUR_API_GATEWAY_URL') {
+                console.warn('API_URL is still using the placeholder value. Using mock API instead.');
+                return {
+                    success: true,
+                    bookingId: `BK${Date.now()}${Math.floor(Math.random() * 1000)}`,
+                    message: 'Booking created successfully (mock)'
+                };
+            }
+            
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
@@ -21,6 +31,14 @@ export const api = {
                 })
             });
             console.log('Response status:', response.status);
+            
+            if (response.status === 404) {
+                console.error('API endpoint not found. Check your API_URL configuration.');
+                return {
+                    success: false,
+                    message: 'API endpoint not found. Please check your configuration.'
+                };
+            }
             
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
